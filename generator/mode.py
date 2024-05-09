@@ -88,14 +88,19 @@ class Mode:
     @staticmethod
     def replace_massive(text: str, massive):
         words = text.split()
-        unique_indexes = set(range(len(words)))
+        unique_indexes = list(range(len(words)))
         num_unique_indexes = math.ceil(len(unique_indexes) / 3)
 
         if num_unique_indexes == 0:
             return random.choice(words)
 
+        if isinstance(massive, dict):
+            massive_keys = list(massive.keys())
+        else:
+            massive_keys = massive
+
         random_indexes = random.sample(unique_indexes, num_unique_indexes)
         for i in random_indexes:
-            words[i] = random.choice(massive)
+            words[i] = random.choice(massive_keys)
 
         return ' '.join(words)
