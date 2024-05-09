@@ -1,2 +1,2 @@
-from .markov import MarkovGenerator
+from .markov import MarkovGenerator, Mode
 from .demotivator import DemotivatorGenerator

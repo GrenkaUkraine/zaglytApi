@@ -1,7 +1,7 @@
 import traceback
 
 from flask import Flask, request, jsonify, send_file
-from generator import MarkovGenerator, DemotivatorGenerator
+from generator import MarkovGenerator, DemotivatorGenerator, Mode
 from config import *
 import os
 
@@ -17,14 +17,36 @@ class ZaglytApi:
         self.generator = None
 
         self.app.add_url_rule('/api/generate', 'generate', self.generate, methods=['POST'])
+        self.app.add_url_rule('/api/generate/demotivator', 'generate_demotivator', self.generate_demotivator,
+                              methods=['POST'])
+
+        self.app.add_url_rule('/api/text/change_mode', 'change_mode', self.change_mode, methods=['POST'])
+
         self.app.add_url_rule('/api/config/max_file_size', 'config', self.get_max_file_size, methods=['GET'])
-        self.app.add_url_rule('/api/generate/demotivator', 'generate_demotivator', self.generate_demotivator, methods=['POST'])
 
     def allowed_file(self, filename):
         return '.' in filename and filename.rsplit('.', 1)[1].lower() in self.app.config['ALLOWED_EXTENSIONS']
 
     def get_max_file_size(self):
         return jsonify({'max_file_size_mb': self.app.config['MAX_FILE_SIZE']}), 200
+
+    def change_mode(self):
+        text = request.args.get('text')
+        if not text:
+            return jsonify({'error': 'Missing required argument "text"'}), 400
+        mode = request.args.get('mode')
+        if not mode:
+            return jsonify({'error': 'Missing required argument "mode"'}), 400
+
+        try:
+            result = Mode.parse_mode(int(mode), text)
+            return jsonify({'text': result}), 200
+        except Exception as e:
+            error_info = {
+                'error': f'An error occurred: {str(e)}',
+                'traceback': traceback.format_tb(e.__traceback__)
+            }
+            return jsonify(error_info), 500
 
     def generate(self):
         if 'file' not in request.files:
