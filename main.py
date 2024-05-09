@@ -1,6 +1,8 @@
 import traceback
 
 from flask import Flask, request, jsonify, send_file
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from generator import MarkovGenerator, DemotivatorGenerator, Mode
 from config import *
 import os
@@ -9,6 +11,8 @@ import os
 class ZaglytApi:
     def __init__(self):
         self.app = Flask(__name__)
+
+        self.limiter = Limiter(get_remote_address)
 
         self.app.config['ALLOWED_EXTENSIONS'] = ALLOWED_EXTENSIONS
         self.app.config['API_KEY'] = API_KEY
@@ -23,6 +27,10 @@ class ZaglytApi:
         self.app.add_url_rule('/api/text/change_mode', 'change_mode', self.change_mode, methods=['POST'])
 
         self.app.add_url_rule('/api/config/max_file_size', 'config', self.get_max_file_size, methods=['GET'])
+
+    def configure_rate_limits(self):
+        self.limiter.limit(f"{GENERATE_PER_SECOND} per minute")(self.generate)
+        self.limiter.limit(f"{DEMOTIVATOR_PER_SECOND} per minute")(self.generate_demotivator)
 
     def allowed_file(self, filename):
         return '.' in filename and filename.rsplit('.', 1)[1].lower() in self.app.config['ALLOWED_EXTENSIONS']
@@ -58,10 +66,16 @@ class ZaglytApi:
             return jsonify({'error': 'No file selected'}), 400
 
         if 'x-api-key' in request.headers and request.headers['x-api-key'] == self.app.config['API_KEY']:
+            # If a valid API key is provided, bypass rate limiting
             pass
         else:
-            if file.content_length > self.app.config['MAX_FILE_SIZE'] * 1024 * 1024:
-                return jsonify({'error': 'File size exceeds the limit (10 MB)'}), 400
+            # Perform rate limiting check
+            if not self.limiter.check():
+                return jsonify({'error': 'Rate limit exceeded'}), 429
+
+        # Continue with file size check and other validations
+        if file.content_length > self.app.config['MAX_FILE_SIZE'] * 1024 * 1024:
+            return jsonify({'error': 'File size exceeds the limit (10 MB)'}), 400
 
         maximum_length = request.args.get('maximum_length')
         if not maximum_length:
@@ -140,6 +154,7 @@ class ZaglytApi:
                 os.remove(image_path)
 
     def run(self, debug: bool = False):
+        self.configure_rate_limits()
         self.app.run(debug=debug)
 
     @staticmethod
