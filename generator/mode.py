@@ -21,6 +21,8 @@ class Mode:
                 return Mode.reverse(text)
             case 6:
                 return Mode.illiterate(text)
+            case 7:
+                return Mode.rap(text)
             case _:
                 return text
 
@@ -57,6 +59,23 @@ class Mode:
     @staticmethod
     def illiterate(text: str):
         return Mode.add_errors(text, massives.errors_dict)
+
+    @staticmethod
+    def rap(text: str):
+        words = text.split()
+        new_words = []
+        for word in words:
+            if word in massives.rap_massive:
+                new_words.append(massives.rap_massive[word])
+            else:
+                new_words.append(word)
+
+            if random.random() > 0.7:
+                new_words[-1] += ' e'
+
+        rap_text = ' '.join(new_words) + ' e.'
+
+        return rap_text
 
     @staticmethod
     def add_errors(text: str, massive):
